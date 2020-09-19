@@ -8,46 +8,50 @@
 
 import SwiftUI
 
-struct ContentView: View {
+import SwiftUI
+
+func fetchWeather(zipcode: String, completion: @escaping ([String:Any]) -> Void) {
+    let urlOpt = URL(string: "https://api.openweathermap.org/data/2.5/weather?zip=\(zipcode),us&appid=<API KEY>&units=imperial")
+    let session = URLSession.shared
+    guard let url = urlOpt else {
+        return
+    }
+    let request = URLRequest(url: url)
     
-    func getWeather(zipcode: String, completion: @escaping ([String:Any]) -> Void) {
-        let urlOpt = URL(string: "")
-        guard let url = urlOpt else {
+    let task = session.dataTask(with: request, completionHandler: { data, response, error in
+        guard error == nil else {
             return
         }
-        let session = URLSession.shared
-        let request = URLRequest(url: url)
         
-        let task = session.dataTask(with: request, completionHandler: {data, response, error in guard error == nil else {
-                return
-            }
-           
-            guard let data = data else {
-                return
-            }
-            
-            do {
-                if let json = try JSONSerialization.jsonObject(with: data, options: mutableContainers as? [String:Any])
-            }
-            catch let error {
-                print(error)
-            }
-        })
-        task.resume()
-    }
+        guard let data = data else {
+            return
+        }
         
-    
+        do {
+            if let json = try JSONSerialization.jsonObject(with: data, options: .mutableContainers) as? [String:Any] {
+                completion(json)
+            }
+        } catch let error {
+            print(error)
+        }
+    })
+    task.resume()
+}
+
+struct ContentView: View {
     @State var zipcode = ""
-    @State var cityName = "Austin"
-    @State var temperature = "90";
+    @State var cityName = ""
+    @State var temperature = ""
+    @State var weatherLoaded = false
     
     func updateWeather() {
-        getWeather(zipcode: self.zipcode, completion: {json in print(json)
-            if let cityName = json["name"]
-                as? String {
-                    self.cityName = cityName
-                }
-                
+        fetchWeather(zipcode: self.zipcode, completion: { json in
+            print(json)
+            self.weatherLoaded = true
+            if let cityName = json["name"] as? String {
+                self.cityName = cityName
+            }
+            
             if let main = json["main"] as? [String:Double] {
                 if let temperature = main["temp"] {
                     self.temperature = String(format: "%.2f", temperature)
@@ -64,8 +68,8 @@ struct ContentView: View {
                     .font(.title)
                 TextField("Zipcode", text: $zipcode)
             }
-            Button(action: {updateWeather}) {
-                Text("Look up weather")
+            Button(action: updateWeather) {
+                Text(/*@START_MENU_TOKEN@*/"Lookup Weather"/*@END_MENU_TOKEN@*/)
             }
             Spacer()
             if weatherLoaded {
@@ -74,7 +78,6 @@ struct ContentView: View {
                     Text("Temperature: " + temperature)
                 }
             }
-            
             Spacer()
         }
     }
